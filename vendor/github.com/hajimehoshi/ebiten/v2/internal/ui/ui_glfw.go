@@ -98,7 +98,6 @@ type userInterfaceImpl struct {
 	savedCursorX float64
 	savedCursorY float64
 
-	sizeCallback                   glfw.SizeCallback
 	closeCallback                  glfw.CloseCallback
 	framebufferSizeCallback        glfw.FramebufferSizeCallback
 	defaultFramebufferSizeCallback glfw.FramebufferSizeCallback
@@ -108,6 +107,9 @@ type userInterfaceImpl struct {
 	darwinInitOnce        sync.Once
 	showWindowOnce        sync.Once
 	bufferOnceSwappedOnce sync.Once
+
+	// immContext is used only in Windows.
+	immContext uintptr
 
 	m sync.RWMutex
 }
@@ -571,6 +573,22 @@ func (u *UserInterface) setWindowClosingHandled(handled bool) {
 	u.m.Lock()
 	u.windowClosingHandled = handled
 	u.m.Unlock()
+
+	if !u.isRunning() {
+		return
+	}
+	if u.isTerminated() {
+		return
+	}
+	u.mainThread.Call(func() {
+		if u.isTerminated() {
+			return
+		}
+		if err := u.setDocumentEdited(handled); err != nil {
+			u.setError(err)
+			return
+		}
+	})
 }
 
 // isFullscreen must be called from the main thread.
@@ -824,6 +842,8 @@ func (u *UserInterface) createWindow() error {
 		return err
 	}
 	u.window = window
+	// Set the running state true just a window is set (#2742).
+	u.setRunning(true)
 
 	// The position must be set before the size is set (#1982).
 	// setWindowSizeInDIP refers the current monitor's device scale.
@@ -872,6 +892,17 @@ func (u *UserInterface) createWindow() error {
 	// Icons are set after every frame. They don't have to be cared here.
 
 	if err := u.updateWindowSizeLimits(); err != nil {
+		return err
+	}
+
+	u.m.Lock()
+	closingHandled := u.windowClosingHandled
+	u.m.Unlock()
+	if err := u.setDocumentEdited(closingHandled); err != nil {
+		return err
+	}
+
+	if err := u.afterWindowCreation(); err != nil {
 		return err
 	}
 
@@ -1060,6 +1091,7 @@ func (u *UserInterface) initOnMainThread(options *RunOptions) error {
 
 	g, lib, err := newGraphicsDriver(&graphicsDriverCreatorImpl{
 		transparent: options.ScreenTransparent,
+		colorSpace:  options.ColorSpace,
 	}, options.GraphicsLibrary)
 	if err != nil {
 		return err
@@ -1356,7 +1388,9 @@ func (u *UserInterface) update() (float64, float64, error) {
 		}
 	}
 
-	for !u.isRunnableOnUnfocused() {
+	// If isRunnableOnUnfocused is false and the window is not focused, wait here.
+	// For the first update, skip this check as the window might not be seen yet in some environments like ChromeOS (#3091).
+	for !u.isRunnableOnUnfocused() && u.bufferOnceSwapped {
 		// In the initial state on macOS, the window is not shown (#2620).
 		visible, err := u.window.GetAttrib(glfw.Visible)
 		if err != nil {

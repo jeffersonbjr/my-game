@@ -21,6 +21,7 @@ import "C"
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/hajimehoshi/ebiten/v2/internal/graphics"
 	"github.com/hajimehoshi/ebiten/v2/internal/graphicsdriver"
@@ -60,10 +61,16 @@ func (g *Graphics) Initialize() error {
 }
 
 func (g *Graphics) Begin() error {
+	C.ebitengine_Begin()
 	return nil
 }
 
 func (g *Graphics) End(present bool) error {
+	var cPresent C.int
+	if present {
+		cPresent = 1
+	}
+	C.ebitengine_End(cPresent)
 	return nil
 }
 
@@ -71,6 +78,9 @@ func (g *Graphics) SetTransparent(transparent bool) {
 }
 
 func (g *Graphics) SetVertices(vertices []float32, indices []uint32) error {
+	defer runtime.KeepAlive(vertices)
+	defer runtime.KeepAlive(indices)
+	C.ebitengine_SetVertices((*C.float)(&vertices[0]), C.int(len(vertices)), (*C.uint32_t)(&indices[0]), C.int(len(indices)))
 	return nil
 }
 
@@ -98,7 +108,7 @@ func (g *Graphics) SetVsyncEnabled(enabled bool) {
 }
 
 func (g *Graphics) NeedsClearingScreen() bool {
-	return false
+	return true
 }
 
 func (g *Graphics) MaxImageSize() int {
@@ -116,7 +126,43 @@ func (g *Graphics) NewShader(program *shaderir.Program) (graphicsdriver.Shader, 
 	}, nil
 }
 
-func (g *Graphics) DrawTriangles(dst graphicsdriver.ImageID, srcs [graphics.ShaderImageCount]graphicsdriver.ImageID, shader graphicsdriver.ShaderID, dstRegions []graphicsdriver.DstRegion, indexOffset int, blend graphicsdriver.Blend, uniforms []uint32, fillRule graphicsdriver.FillRule) error {
+func (g *Graphics) DrawTriangles(dst graphicsdriver.ImageID, srcs [graphics.ShaderSrcImageCount]graphicsdriver.ImageID, shader graphicsdriver.ShaderID, dstRegions []graphicsdriver.DstRegion, indexOffset int, blend graphicsdriver.Blend, uniforms []uint32, fillRule graphicsdriver.FillRule) error {
+	cSrcs := make([]C.int, len(srcs))
+	for i, src := range srcs {
+		cSrcs[i] = C.int(src)
+	}
+	defer runtime.KeepAlive(cSrcs)
+
+	cDstRegions := make([]C.ebitengine_DstRegion, len(dstRegions))
+	defer runtime.KeepAlive(cDstRegions)
+	for i, r := range dstRegions {
+		cDstRegions[i] = C.ebitengine_DstRegion{
+			min_x:       C.int(r.Region.Min.X),
+			min_y:       C.int(r.Region.Min.Y),
+			max_x:       C.int(r.Region.Max.X),
+			max_y:       C.int(r.Region.Max.Y),
+			index_count: C.int(r.IndexCount),
+		}
+	}
+
+	cBlend := C.ebitengine_Blend{
+		factor_src_rgb:   C.uint8_t(blend.BlendFactorSourceRGB),
+		factor_src_alpha: C.uint8_t(blend.BlendFactorSourceAlpha),
+		factor_dst_rgb:   C.uint8_t(blend.BlendFactorDestinationRGB),
+		factor_dst_alpha: C.uint8_t(blend.BlendFactorDestinationAlpha),
+		operation_rgb:    C.uint8_t(blend.BlendOperationRGB),
+		operation_alpha:  C.uint8_t(blend.BlendOperationAlpha),
+	}
+
+	cUniforms := make([]C.uint32_t, len(uniforms))
+	defer runtime.KeepAlive(cUniforms)
+	for i, u := range uniforms {
+		cUniforms[i] = C.uint32_t(u)
+	}
+
+	if err := C.ebitengine_DrawTriangles(C.int(dst), &cSrcs[0], C.int(len(cSrcs)), C.int(shader), &cDstRegions[0], C.int(len(cDstRegions)), C.int(indexOffset), cBlend, &cUniforms[0], C.int(len(cUniforms)), C.int(fillRule)); !C.ebitengine_IsErrorNil(&err) {
+		return newPlaystation5Error("(*playstation5.Graphics).DrawTriangles", err)
+	}
 	return nil
 }
 
