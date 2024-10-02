@@ -17,8 +17,6 @@ package gl
 import (
 	"fmt"
 	"syscall/js"
-
-	"github.com/hajimehoshi/ebiten/v2/internal/jsutil"
 )
 
 type defaultContext struct {
@@ -67,9 +65,7 @@ type defaultContext struct {
 	fnGetShaderInfoLog         js.Value
 	fnGetShaderParameter       js.Value
 	fnGetUniformLocation       js.Value
-	fnIsFramebuffer            js.Value
 	fnIsProgram                js.Value
-	fnIsRenderbuffer           js.Value
 	fnLinkProgram              js.Value
 	fnPixelStorei              js.Value
 	fnReadPixels               js.Value
@@ -197,9 +193,7 @@ func NewDefaultContext(v js.Value) (Context, error) {
 		fnGetShaderInfoLog:         v.Get("getShaderInfoLog").Call("bind", v),
 		fnGetShaderParameter:       v.Get("getShaderParameter").Call("bind", v),
 		fnGetUniformLocation:       v.Get("getUniformLocation").Call("bind", v),
-		fnIsFramebuffer:            v.Get("isFramebuffer").Call("bind", v),
 		fnIsProgram:                v.Get("isProgram").Call("bind", v),
-		fnIsRenderbuffer:           v.Get("isRenderbuffer").Call("bind", v),
 		fnLinkProgram:              v.Get("linkProgram").Call("bind", v),
 		fnPixelStorei:              v.Get("pixelStorei").Call("bind", v),
 		fnReadPixels:               v.Get("readPixels").Call("bind", v),
@@ -292,7 +286,7 @@ func (c *defaultContext) BufferInit(target uint32, size int, usage uint32) {
 
 func (c *defaultContext) BufferSubData(target uint32, offset int, data []byte) {
 	l := len(data)
-	arr := jsutil.TemporaryUint8ArrayFromUint8Slice(l, data)
+	arr := tmpUint8ArrayFromUint8Slice(l, data)
 	c.fnBufferSubData.Invoke(target, offset, arr, 0, l)
 }
 
@@ -481,16 +475,8 @@ func (c *defaultContext) GetUniformLocation(program uint32, name string) int32 {
 	return int32((program << 5) | idx)
 }
 
-func (c *defaultContext) IsFramebuffer(framebuffer uint32) bool {
-	return c.fnIsFramebuffer.Invoke(c.framebuffers.get(framebuffer)).Bool()
-}
-
 func (c *defaultContext) IsProgram(program uint32) bool {
 	return c.fnIsProgram.Invoke(c.programs.get(program)).Bool()
-}
-
-func (c *defaultContext) IsRenderbuffer(renderbuffer uint32) bool {
-	return c.fnIsRenderbuffer.Invoke(c.renderbuffers.get(renderbuffer)).Bool()
 }
 
 func (c *defaultContext) LinkProgram(program uint32) {
@@ -506,7 +492,7 @@ func (c *defaultContext) ReadPixels(dst []byte, x int32, y int32, width int32, h
 		c.fnReadPixels.Invoke(x, y, width, height, format, xtype, 0)
 		return
 	}
-	p := jsutil.TemporaryUint8ArrayFromUint8Slice(len(dst), nil)
+	p := tmpUint8ArrayFromUint8Slice(len(dst), nil)
 	c.fnReadPixels.Invoke(x, y, width, height, format, xtype, p)
 	js.CopyBytesToGo(dst, p)
 }
@@ -543,7 +529,7 @@ func (c *defaultContext) TexParameteri(target uint32, pname uint32, param int32)
 }
 
 func (c *defaultContext) TexSubImage2D(target uint32, level int32, xoffset int32, yoffset int32, width int32, height int32, format uint32, xtype uint32, pixels []byte) {
-	arr := jsutil.TemporaryUint8ArrayFromUint8Slice(len(pixels), pixels)
+	arr := tmpUint8ArrayFromUint8Slice(len(pixels), pixels)
 	// void texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset,
 	//                    GLsizei width, GLsizei height,
 	//                    GLenum format, GLenum type, ArrayBufferView pixels, srcOffset);
@@ -552,7 +538,7 @@ func (c *defaultContext) TexSubImage2D(target uint32, level int32, xoffset int32
 
 func (c *defaultContext) Uniform1fv(location int32, value []float32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryFloat32Array(len(value), value)
+	arr := tmpFloat32ArrayFromFloat32Slice(len(value), value)
 	c.fnUniform1fv.Invoke(l, arr, 0, len(value))
 }
 
@@ -563,61 +549,61 @@ func (c *defaultContext) Uniform1i(location int32, v0 int32) {
 
 func (c *defaultContext) Uniform1iv(location int32, value []int32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryInt32Array(len(value), value)
+	arr := tmpInt32ArrayFromInt32Slice(len(value), value)
 	c.fnUniform1iv.Invoke(l, arr, 0, len(value))
 }
 
 func (c *defaultContext) Uniform2fv(location int32, value []float32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryFloat32Array(len(value), value)
+	arr := tmpFloat32ArrayFromFloat32Slice(len(value), value)
 	c.fnUniform2fv.Invoke(l, arr, 0, len(value))
 }
 
 func (c *defaultContext) Uniform2iv(location int32, value []int32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryInt32Array(len(value), value)
+	arr := tmpInt32ArrayFromInt32Slice(len(value), value)
 	c.fnUniform2iv.Invoke(l, arr, 0, len(value))
 }
 
 func (c *defaultContext) Uniform3fv(location int32, value []float32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryFloat32Array(len(value), value)
+	arr := tmpFloat32ArrayFromFloat32Slice(len(value), value)
 	c.fnUniform3fv.Invoke(l, arr, 0, len(value))
 }
 
 func (c *defaultContext) Uniform3iv(location int32, value []int32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryInt32Array(len(value), value)
+	arr := tmpInt32ArrayFromInt32Slice(len(value), value)
 	c.fnUniform3iv.Invoke(l, arr, 0, len(value))
 }
 
 func (c *defaultContext) Uniform4fv(location int32, value []float32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryFloat32Array(len(value), value)
+	arr := tmpFloat32ArrayFromFloat32Slice(len(value), value)
 	c.fnUniform4fv.Invoke(l, arr, 0, len(value))
 }
 
 func (c *defaultContext) Uniform4iv(location int32, value []int32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryInt32Array(len(value), value)
+	arr := tmpInt32ArrayFromInt32Slice(len(value), value)
 	c.fnUniform4iv.Invoke(l, arr, 0, len(value))
 }
 
 func (c *defaultContext) UniformMatrix2fv(location int32, value []float32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryFloat32Array(len(value), value)
+	arr := tmpFloat32ArrayFromFloat32Slice(len(value), value)
 	c.fnUniformMatrix2fv.Invoke(l, false, arr, 0, len(value))
 }
 
 func (c *defaultContext) UniformMatrix3fv(location int32, value []float32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryFloat32Array(len(value), value)
+	arr := tmpFloat32ArrayFromFloat32Slice(len(value), value)
 	c.fnUniformMatrix3fv.Invoke(l, false, arr, 0, len(value))
 }
 
 func (c *defaultContext) UniformMatrix4fv(location int32, value []float32) {
 	l := c.getUniformLocation(location)
-	arr := jsutil.TemporaryFloat32Array(len(value), value)
+	arr := tmpFloat32ArrayFromFloat32Slice(len(value), value)
 	c.fnUniformMatrix4fv.Invoke(l, false, arr, 0, len(value))
 }
 

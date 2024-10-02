@@ -1,5 +1,5 @@
-# github.com/ebitengine/gomobile v0.0.0-20240518074828-e86332849895
-## explicit; go 1.18
+# github.com/ebitengine/gomobile v0.0.0-20240911145611-4856209ac325
+## explicit; go 1.22.0
 github.com/ebitengine/gomobile/app
 github.com/ebitengine/gomobile/app/internal/callfn
 github.com/ebitengine/gomobile/event/key
@@ -13,15 +13,15 @@ github.com/ebitengine/gomobile/internal/mobileinit
 # github.com/ebitengine/hideconsole v1.0.0
 ## explicit; go 1.18
 github.com/ebitengine/hideconsole
-# github.com/ebitengine/purego v0.7.0
+# github.com/ebitengine/purego v0.8.0
 ## explicit; go 1.18
 github.com/ebitengine/purego
 github.com/ebitengine/purego/internal/cgo
 github.com/ebitengine/purego/internal/fakecgo
 github.com/ebitengine/purego/internal/strings
 github.com/ebitengine/purego/objc
-# github.com/hajimehoshi/ebiten/v2 v2.7.10
-## explicit; go 1.18
+# github.com/hajimehoshi/ebiten/v2 v2.8.0
+## explicit; go 1.22.0
 github.com/hajimehoshi/ebiten/v2
 github.com/hajimehoshi/ebiten/v2/internal/affine
 github.com/hajimehoshi/ebiten/v2/internal/atlas
@@ -45,11 +45,11 @@ github.com/hajimehoshi/ebiten/v2/internal/graphicsdriver/opengl
 github.com/hajimehoshi/ebiten/v2/internal/graphicsdriver/opengl/gl
 github.com/hajimehoshi/ebiten/v2/internal/graphicsdriver/playstation5
 github.com/hajimehoshi/ebiten/v2/internal/hook
-github.com/hajimehoshi/ebiten/v2/internal/jsutil
 github.com/hajimehoshi/ebiten/v2/internal/microsoftgdk
 github.com/hajimehoshi/ebiten/v2/internal/mipmap
 github.com/hajimehoshi/ebiten/v2/internal/packing
 github.com/hajimehoshi/ebiten/v2/internal/png
+github.com/hajimehoshi/ebiten/v2/internal/restorable
 github.com/hajimehoshi/ebiten/v2/internal/shader
 github.com/hajimehoshi/ebiten/v2/internal/shaderir
 github.com/hajimehoshi/ebiten/v2/internal/shaderir/glsl
@@ -75,7 +75,7 @@ golang.org/x/image/vector
 # golang.org/x/sync v0.8.0
 ## explicit; go 1.18
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.20.0
+# golang.org/x/sys v0.25.0
 ## explicit; go 1.18
 golang.org/x/sys/unix
 golang.org/x/sys/windows

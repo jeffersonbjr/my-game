@@ -88,6 +88,10 @@ func (cs *compileState) parseExpr(block *block, fname string, expr ast.Expr, mar
 			return nil, nil, nil, false
 		}
 		stmts = append(stmts, ss...)
+		if len(ts) == 0 {
+			cs.addError(e.Pos(), fmt.Sprintf("unexpected binary operator: %s", e.Y))
+			return nil, nil, nil, false
+		}
 		rhst := ts[0]
 
 		op := e.Op
@@ -199,7 +203,7 @@ func (cs *compileState) parseExpr(block *block, fname string, expr ast.Expr, mar
 				return nil, nil, nil, false
 			}
 			for _, expr := range es {
-				if expr.Type == shaderir.FunctionExpr {
+				if expr.Type == shaderir.FunctionExpr || expr.Type == shaderir.BuiltinFuncExpr {
 					cs.addError(e.Pos(), fmt.Sprintf("function name cannot be an argument: %s", e.Fun))
 					return nil, nil, nil, false
 				}
@@ -1034,8 +1038,14 @@ func (cs *compileState) parseExpr(block *block, fname string, expr ast.Expr, mar
 			cs.addError(e.Pos(), fmt.Sprintf("invalid composite literal type %s", t.String()))
 			return nil, nil, nil, false
 		}
-		if t.Main == shaderir.Array && t.Length == -1 {
-			t.Length = len(e.Elts)
+		if t.Main == shaderir.Array {
+			if t.Length == -1 {
+				t.Length = len(e.Elts)
+			} else if t.Length < len(e.Elts) {
+				// KeyValueExpr is not supported yet. Just compare the length.
+				cs.addError(e.Pos(), fmt.Sprintf("too many values in %s literal", t.String()))
+				return nil, nil, nil, false
+			}
 		}
 
 		idx := block.totalLocalVariableCount()
@@ -1145,6 +1155,31 @@ func (cs *compileState) parseExpr(block *block, fname string, expr ast.Expr, mar
 		}
 		x := exprs[0]
 		t := ts[0]
+
+		// Check the length only when the index is a constant.
+		if idx.Const != nil {
+			var length int
+			switch {
+			case t.Main == shaderir.Array:
+				length = t.Length
+			case t.IsFloatVector() || t.IsIntVector():
+				length = t.VectorElementCount()
+			case t.IsMatrix():
+				length = t.MatrixSize()
+			default:
+				cs.addError(e.Pos(), fmt.Sprintf("index operator cannot be applied to the type %s", t.String()))
+				return nil, nil, nil, false
+			}
+			v, ok := gconstant.Int64Val(gconstant.ToInt(idx.Const))
+			if !ok {
+				cs.addError(e.Pos(), fmt.Sprintf("constant %s cannot be used as an index", idx.Const.String()))
+				return nil, nil, nil, false
+			}
+			if v < 0 || int(v) >= length {
+				cs.addError(e.Pos(), fmt.Sprintf("index out of range: %d", v))
+				return nil, nil, nil, false
+			}
+		}
 
 		var typ shaderir.Type
 		switch t.Main {
