@@ -1,8 +1,8 @@
 package game
 
 import (
-	"image/color"
 	"math/rand"
+	"my-game/assets"
 	"strconv"
 	"time"
 
@@ -21,6 +21,7 @@ type Meteor struct {
 	x     float64
 	y     float64
 	speed float64
+	image *ebiten.Image
 }
 
 // Função que inicializa um novo jogo
@@ -84,20 +85,24 @@ func (g *Game) spawnMeteor() {
 	newMeteor := Meteor{
 		x:     rand.Float64() * screenWidth,
 		y:     0,
-		speed: 2 + rand.Float64()*3,
+		speed: 2 + rand.Float64()*2,
+		image: assets.MeteorSprites[rand.Intn(len(assets.MeteorSprites))], // Escolhe um meteoro aleatoriamente
 	}
 	g.meteors = append(g.meteors, newMeteor)
 }
 
+// Desenha todos os meteoros na tela
 func (g *Game) Draw(screen *ebiten.Image) {
 	g.player.Draw(screen)
 
 	for _, meteor := range g.meteors {
-		ebitenutil.DrawRect(screen, meteor.x, meteor.y, 64, 64, color.RGBA{255, 0, 0, 255})
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(meteor.x, meteor.y)
+		screen.DrawImage(meteor.image, op) // Desenha a imagem do meteoro
 	}
-
 	ebitenutil.DebugPrint(screen, "Lives: "+strconv.Itoa(g.lives))
 	ebitenutil.DebugPrintAt(screen, "Score: "+strconv.Itoa(g.score), 10, 20)
+
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
